@@ -1,9 +1,9 @@
 
 import windows_power
 import harmony_reactor
+import nest_process
 
 import time
-import os
 import subprocess
 import signal
 import sys
@@ -17,7 +17,7 @@ from phue import Bridge
 import datetime
 from pyHS100 import SmartPlug
 from pprint import pformat
-from multiprocessing import Process
+
 
 config = configparser.RawConfigParser()
 config.read('home_automation.cfg')
@@ -131,53 +131,16 @@ class ZmqEvents(object):
             return True
         except:
             return False
-    
 
 
-class NestMultiProcess(object):
-    def __init__(self, username, password):
-        self.username = username
-        self.password = password
-        
-    def nest_away(self):
-        logger.info("Setting Nest to away")
-        os.system("nest -u %s -p %s -c away --away" % (self.username, self.password))
-        logger.info("Setting Nest to away - done")
 
-    def nest_home(self):
-        logger.info("Setting Nest to home")
-        os.system("nest -u %s -p %s -c away --home" % (self.username, self.password))
-        logger.info("Setting Nest to home - done")
-        
-    def nest_temp(self, temp):
-        logger.info("Setting Nest target temperature to %f" % temp)
-        os.system("nest -u %s -p %s -c temp %f" % (self.username, self.password, temp))
-        logger.info("Setting Nest target temperature to %f - done" % temp)
-        
-    def nest_home_and_temp(self, home, temp):
-        self.nest_temp(temp)
-        if home:
-            self.nest_home()
-        else:
-            self.nest_away()
-            
-    def multi_home_and_temp(self, home, temp):
-        p = Process(target=self.nest_home_and_temp, args=(home, temp, ))
-        p.start()
-    
-    def multi_temp(self, temp):
-        p = Process(target=self.nest_temp, args=(temp, ))
-        p.start()
-
-    
-        
 class HomeAutomation(object):
     def __init__(self):
         signal.signal(signal.SIGINT, self.signal_handler)
         self.pc_power = windows_power.WindowsPower(config.get('windowspc', 'name'), config.get('windowspc', 'ip'), config.get('windowspc', 'mac'), 
                                                    config.get('network', 'broadcast_ip'), config.get('windowspc', 'username'), config.get('windowspc', 'password'))
         self.hue_presets  = HuePresets(config.get('hue', 'bridge_ip'), self.hue_button_event_handler)
-        self.nest         = NestMultiProcess(config.get('nest', 'username'), config.get('nest', 'password'))
+        self.nest         = nest_process.NestMultiProcess(config.get('nest', 'username'), config.get('nest', 'password'))
         self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'), self.harmony_state_change_handler)
         self.dac_power    = SmartPlug(config.get('dac', 'ip'))
         self.zmq          = ZmqEvents(config.getint('zmq', 'port'), self.zmq_message_handler)
