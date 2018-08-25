@@ -9,7 +9,7 @@ import timeit
 import logging
 import zmq
 import traceback
-import ConfigParser
+import configparser
 from phue import Bridge
 import datetime
 from pyHS100 import SmartPlug
@@ -154,14 +154,14 @@ class ZmqEvents(object):
         self.message_handler = message_handler
         self.zmq_context = zmq.Context()
         self.zmq_socket = self.zmq_context.socket(zmq.SUB)
-        self.zmq_socket.setsockopt(zmq.SUBSCRIBE, '')
+        self.zmq_socket.setsockopt(zmq.SUBSCRIBE, b'')
         self.zmq_socket.connect("tcp://localhost:%d" % port)
         logger.info("ZMQ connected.")
         
     def check_zmq_event(self):
         logger.debug("Checking ZMQ event")
         try:
-            message = self.zmq_socket.recv(flags=zmq.NOBLOCK)
+            message = self.zmq_socket.recv(flags=zmq.NOBLOCK).decode("utf-8")
             logger.info("Received message [%s]" % message)
             self.message_handler(message)
             return True
@@ -210,7 +210,7 @@ class NestMultiProcess(object):
 class HomeAutomation(object):
     def __init__(self):
         signal.signal(signal.SIGINT, self.signal_handler)
-        config = ConfigParser.RawConfigParser()
+        config = configparser.RawConfigParser()
         config.read('home_automation.cfg')
         self.hettie_power = WindowsPcPower(config.get('windowspc', 'name'), config.get('windowspc', 'ip'), config.get('windowspc', 'mac'), 
                                            config.get('network', 'broadcast_ip'), config.get('windowspc', 'username'), config.get('windowspc', 'password'))
