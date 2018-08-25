@@ -228,12 +228,10 @@ class WindowsPcPower(object):
         
 
 class HarmonyStateMonitor(object):
-    def __init__(self, ip, port, state_handler, message_handler):
+    def __init__(self, ip, port, state_handler):
         self.ip                   = ip
         self.port                 = port
         self.handler_func         = state_handler
-        self.message_handler      = message_handler
-        self.harmony_token        = None
         self.harmony_client       = None
         self.harmony_config_cache = None
         self.last_state           = None
@@ -241,20 +239,10 @@ class HarmonyStateMonitor(object):
         
     def connect(self):
         logging.info("connecting harmony: %s:%s" % (self.ip, self.port))
-        #self.harmony_token = pyharmony.ha_get_token(self.ip, self.port)
-        #logging.info(harmony_token)
-        #self.harmony_client = pyharmony.ha_get_client(self.harmony_token, self.ip, self.port)
         self.harmony_client = pyharmony.get_client(self.ip, self.port, self.state_change_callback)
-        #logging.info(harmony_client)
         self.harmony_config_cache = self.harmony_client.get_config()
         logging.info("Harmony connected. Connecting to ZMQ")
-        #logging.info(harmony_config_cache)
         self.last_state = self.get_activity()
-        self.zmq_context = zmq.Context()
-        self.zmq_socket = self.zmq_context.socket(zmq.SUB)
-        self.zmq_socket.setsockopt(zmq.SUBSCRIBE, '')
-        self.zmq_socket.connect("tcp://localhost:5555")
-        logging.info("ZMQ connected.")
     
     def disconnect(self):
         if self.harmony_client != None:
@@ -307,7 +295,17 @@ class HarmonyStateMonitor(object):
             if self.handler_func != None:
                 self.handler_func(self.last_state, new_state)
             self.last_state = new_state
-            
+
+
+class ZmqEvents(object):
+    def __init__(self, port, message_handler):
+        self.message_handler = message_handler
+        self.zmq_context = zmq.Context()
+        self.zmq_socket = self.zmq_context.socket(zmq.SUB)
+        self.zmq_socket.setsockopt(zmq.SUBSCRIBE, '')
+        self.zmq_socket.connect("tcp://localhost:%d" % port)
+        logging.info("ZMQ connected.")
+        
     def check_zmq_event(self):
         logging.debug("Checking ZMQ event")
         try:
@@ -365,6 +363,7 @@ class HomeAutomation(object):
         self.nest         = NestMultiProcess()
         self.harmony      = HarmonyStateMonitor("<HARMONY-HUB-IP>", 5222, self.harmony_state_change_handler, self.harmony_message_handler)
         self.dac_power    = SmartPlug("<WIFI-SOCKET-IP>")
+        self.zmq          = ZmqEvents(<ZMQ-PORT>, self.zmq_message_handler)
         self.harmony.connect()
         
     def harmony_state_change_handler(self, old_state, new_state):
@@ -389,7 +388,7 @@ class HomeAutomation(object):
             logging.info("Switching DAC ON")
             self.dac_power.turn_on()
     
-    def harmony_message_handler(self, message):
+    def zmq_message_handler(self, message):
         if message[:10] == "RelaxLight":
             self.hue_presets.relax_lights()
         if message[:9] == "FilmLight":
@@ -428,7 +427,7 @@ class HomeAutomation(object):
             counter = 0
             while True:
                 logging.debug("Run %d" % counter)
-                while self.harmony.check_zmq_event():
+                while self.zmq.check_zmq_event():
                     pass
                 if counter % 5 == 0:
                     self.hue_presets.check_lights()
