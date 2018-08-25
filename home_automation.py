@@ -307,7 +307,6 @@ class HomeAutomation(object):
         except:
             logger.info("Caught an exception, shutting down.")
             logger.info(traceback.format_exc())
-            logger.info("bla")
             self.harmony.disconnect()
             sys.exit(0)    
     
