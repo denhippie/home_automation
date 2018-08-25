@@ -78,87 +78,14 @@ class HueMotionFixer(object):
         if time_since_last_update > datetime.timedelta(minutes=self.timeout) and self.bridge[self.lights].on:
             logger.info("%s last activity %s ago, switching %s off." % (self.sensor_name, str(time_since_last_update), self.lights))
             self.bridge[self.lights].on = False
-            
-            
-            
-class HueLinkedPlug(object):
-    def __init__(self, bridge, plug_ip, hue_light_name):
-        self.bridge         = bridge        
-        self.plug_ip        = plug_ip
-        self.hue_light_name = hue_light_name
-        self.reachable      = True
-        self.hue_state      = self.get_hue_state()
-    
-    def check_online(self):
-        response = -1
-        try:
-            response = os.system("ping -c 1 -w 1 %s > /dev/null" % self.plug_ip)
-        except:
-            logger.info("Failed to ping %s" % self.plug_ip)
-        return response == 0
-    
-    def get_plug_state(self):
-        plug = SmartPlug(self.plug_ip)
-        return plug.state
-        
-    def get_plug_alias(self):
-        plug = SmartPlug(self.plug_ip)
-        return plug.alias
-        
-    def plug_switch(self, on):
-        plug = SmartPlug(self.plug_ip)
-        if on:
-            plug.turn_on()
-        else:
-            plug.turn_off()
-        
-    def get_hue_state(self):
-        return self.bridge[self.hue_light_name].on and self.bridge[self.hue_light_name].brightness >= 50
-    
-    def check_lights(self):
-        logger.debug("Checking Hue Linked Plug %s: %s" % (self.hue_light_name, self.plug_ip))
-        if not self.check_online():
-            logger.debug("Hue Linked Plug %s is NOT online" % self.hue_light_name)
-            if self.reachable:
-                logger.info("Plug at %s unreachable, not able to link with %s" % (self.plug_ip, self.hue_light_name))
-                self.reachable = False
-            return
-        elif not self.reachable:
-            logger.info("Plug at %s came back online, linking with %s" % (self.plug_ip, self.hue_light_name))
-            self.reachable = True
-        logger.debug("Hue Linked Plug %s is online" % self.hue_light_name)
-        plug_state = None
-        hue_state  = None
-        try:
-            plug_state = self.get_plug_state()
-            hue_state  = self.get_hue_state()
-        except:
-            logger.info("Plug at %s did not respond, not able to link with %s" % (self.plug_ip, self.hue_light_name))
-            return
-        if hue_state != self.hue_state:
-            alias = self.get_plug_alias()
-            logger.info("%s switched state, checking %s (%s)" % (self.hue_light_name, alias, self.plug_ip))
-            self.hue_state = hue_state
-            #logger.info("%s = %s | %s = %s" % (plug.alias, plug.state, self.hue_light_name, self.bridge[self.hue_light_name].on))
-            if   plug_state == "ON" and not hue_state:
-                logger.info("Switching %s OFF to match %s" % (alias, self.hue_light_name))
-                self.plug_switch(False)
-            elif plug_state == "OFF" and hue_state:
-                logger.info("Switching %s ON to match %s" % (alias, self.hue_light_name))
-                self.plug_switch(True)
-        logger.debug("Finished checking Hue Linked Plug %s" % self.hue_light_name)
-        
-    
-    
+
+
 class HuePresets(object):
     def __init__(self, ip, button_handler):
         self.bridge  = Bridge(ip)
         self.sensors = []
         self.sensors.append(HueMotionFixer(self.bridge, "Berging sensor", 2, "Berging"))
         self.sensors.append(HueMotionFixer(self.bridge, "Entree sensor", 10, "Entree"))
-        #self.sensors.append(HueLinkedPlug(self.bridge, "XXX.XXX.XXX.XXX", "Projectiescherm")) # Glazen Bol
-        #self.sensors.append(HueLinkedPlug(self.bridge, "XXX.XXX.XXX.XXX", "Projectiescherm")) # Staande Lamp
-        #self.sensors.append(HueLinkedPlug(self.bridge, "XXX.XXX.XXX.XXX", "Projectiescherm")) # Kerstboom
         self.sensors.append(HueButtonAction(self.bridge, "Entree switch", button_handler))
         self.sensors.append(HueButtonAction(self.bridge, "Slaapkamer switch", button_handler))
 
