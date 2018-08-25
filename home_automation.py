@@ -19,7 +19,6 @@ from multiprocessing import Process
 
 logfile = '/var/log/hettiewol/hettiewol.log'
 logging.basicConfig(filename=logfile,level=logging.INFO, format='%(asctime)s [%(name)s][%(levelname)s] %(message)s')
-#logger.basicConfig(filename=logfile,level=logger.DEBUG, format='%(asctime)s %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -90,24 +89,15 @@ class HuePresets(object):
         self.sensors.append(HueButtonAction(self.bridge, "Entree switch", button_handler))
         self.sensors.append(HueButtonAction(self.bridge, "Slaapkamer switch", button_handler))
 
-    def change_scene_if_on(self, group_name, scene_name):
-        group = self.bridge.get_group(group_name)
-        if group["state"]["any_on"]:
-            self.bridge.run_scene(group_name, scene_name)
-        else:
-            logger.info("%s: not changing to scene %s, all lights are off." % (group_name, scene_name))
-        
     def movie_lights(self):
         logger.info("setting lights to movie mode")
         for group_name in ["Tafel", "Hal", "Keuken", "Huiskamer"]:
-            #self.change_scene_if_on(group_name, "Film")
             self.bridge.run_scene(group_name, "Film")
         self.check_lights()
     
     def relax_lights(self):
         logger.info("setting lights to relax mode")
         for group_name in ["Tafel", "Hal", "Keuken", "Huiskamer"]:
-            #self.change_scene_if_on(group_name, "Relax")
             self.bridge.run_scene(group_name, "Relax")
         self.check_lights()
         
@@ -173,7 +163,6 @@ class ZmqEvents(object):
         try:
             message = self.zmq_socket.recv(flags=zmq.NOBLOCK)
             logger.info("Received message [%s]" % message)
-            #self.check_state_change()
             self.message_handler(message)
             return True
         except:
@@ -233,10 +222,6 @@ class HomeAutomation(object):
         self.harmony.connect()
         
     def harmony_state_change_handler(self, old_state, new_state):
-        #if old_state == "Film":
-        #    self.hue_presets.relax_lights()
-        #if new_state == "Film":
-        #    self.hue_presets.movie_lights()
         logger.info("Harmony state change: [%s] --> [%s]" % (old_state, new_state))
         if self.hettie_should_be_on(old_state) and not self.hettie_should_be_on(new_state):
             self.hettie_power.shutdown_hettie()
