@@ -254,22 +254,23 @@ class ZmqEvents(object):
 
 
 class NestMultiProcess(object):
-    def __init__(self):
-        pass
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
         
     def nest_away(self):
         logger.info("Setting Nest to away")
-        os.system("nest -u <NEST-USERNAME> -p <NEST-PASSWORD> -c away --away")
+        os.system("nest -u %s -p %s -c away --away" % (self.username, self.password))
         logger.info("Setting Nest to away - done")
 
     def nest_home(self):
         logger.info("Setting Nest to home")
-        os.system("nest -u <NEST-USERNAME> -p <NEST-PASSWORD> -c away --home")
+        os.system("nest -u %s -p %s -c away --home" % (self.username, self.password))
         logger.info("Setting Nest to home - done")
         
     def nest_temp(self, temp):
         logger.info("Setting Nest target temperature to %f" % temp)
-        os.system("nest -u <NEST-USERNAME> -p <NEST-PASSWORD> -c temp %f" % temp)
+        os.system("nest -u %s -p %s -c temp %f" % (self.username, self.password, temp))
         logger.info("Setting Nest target temperature to %f - done" % temp)
         
     def nest_home_and_temp(self, home, temp):
@@ -294,7 +295,7 @@ class HomeAutomation(object):
         signal.signal(signal.SIGINT, self.signal_handler)
         self.hettie_power = WindowsPcPower("<PCNAME>", "<PC-IP>", "<PC-MAC>", "<BROADCAST_IP>", "<LOGIN>", "<PASSWORD>")
         self.hue_presets  = HuePresets("<HUE-BRIDGE-IP>", self.hue_button_event_handler)
-        self.nest         = NestMultiProcess()
+        self.nest         = NestMultiProcess("<NEST-USERNAME>", "<NEST-PASSWORD>")
         self.harmony      = harmony_reactor.HarmonyStateMonitor("<HARMONY-HUB-IP>", 5222, self.harmony_state_change_handler, logging)
         self.dac_power    = SmartPlug("<WIFI-SOCKET-IP>")
         self.zmq          = ZmqEvents(<ZMQ-PORT>, self.zmq_message_handler)
