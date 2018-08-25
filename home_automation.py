@@ -16,8 +16,10 @@ from pyHS100 import SmartPlug
 from pprint import pformat
 from multiprocessing import Process
 
+config = configparser.RawConfigParser()
+config.read('home_automation.cfg')
 
-logfile = '/var/log/hettiewol/hettiewol.log'
+logfile = config.get('log', 'file')
 logging.basicConfig(filename=logfile,level=logging.INFO, format='%(asctime)s [%(name)s][%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -129,19 +131,12 @@ class WindowsPcPower(object):
         logger.info("seding wol packet to %s" % self.name)
         os.system("wakeonlan -i %s %s" % (self.broadcast_ip, self.mac))
     
-    def wake_hettie(self):
-        logger.info("Waking %s" % self.name)
-        if self.check_online():
-            logger.info("%s already awake." % self.name)
-            return
-        self.send_wol()
-    
     def send_shutdown(self):
         logger.info("sending shutdown to %s" % self.name)
         shutdown_command = "net rpc shutdown -f -t 1 -I %s -U %s%%%s" % (self.ip, self.username, self.password)
         os.system(shutdown_command)
     
-    def shutdown_hettie(self):
+    def shutdown_if_online(self):
         logger.info("Shutting down %s" % self.name)
         if not self.check_online():
             logger.info("%s already down." % self.name)
@@ -210,8 +205,6 @@ class NestMultiProcess(object):
 class HomeAutomation(object):
     def __init__(self):
         signal.signal(signal.SIGINT, self.signal_handler)
-        config = configparser.RawConfigParser()
-        config.read('home_automation.cfg')
         self.hettie_power = WindowsPcPower(config.get('windowspc', 'name'), config.get('windowspc', 'ip'), config.get('windowspc', 'mac'), 
                                            config.get('network', 'broadcast_ip'), config.get('windowspc', 'username'), config.get('windowspc', 'password'))
         self.hue_presets  = HuePresets(config.get('hue', 'bridge_ip'), self.hue_button_event_handler)
@@ -224,7 +217,7 @@ class HomeAutomation(object):
     def harmony_state_change_handler(self, old_state, new_state):
         logger.info("Harmony state change: [%s] --> [%s]" % (old_state, new_state))
         if self.hettie_should_be_on(old_state) and not self.hettie_should_be_on(new_state):
-            self.hettie_power.shutdown_hettie()
+            self.hettie_power.shutdown_if_online()
         elif not self.hettie_should_be_on(old_state) and self.hettie_should_be_on(new_state):
             self.hettie_power.send_wol()
         self.check_dac_state(new_state)
