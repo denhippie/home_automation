@@ -1,8 +1,10 @@
 
+import windows_power
+import harmony_reactor
+
 import time
 import os
 import subprocess
-import harmony_reactor
 import signal
 import sys
 import timeit
@@ -10,6 +12,7 @@ import logging
 import zmq
 import traceback
 import configparser
+
 from phue import Bridge
 import datetime
 from pyHS100 import SmartPlug
@@ -108,41 +111,6 @@ class HuePresets(object):
         for sensor in self.sensors:
             sensor.check_lights()
 
-    
-
-class WindowsPcPower(object):
-    def __init__(self, name, ip, mac, broadcast_ip, username, password):
-        self.name         = name
-        self.ip           = ip
-        self.mac          = mac
-        self.broadcast_ip = broadcast_ip
-        self.username     = username
-        self.password     = password
-        
-    def check_online(self):
-        response = os.system("ping -c 1 -w 1 %s > /dev/null" % self.ip)
-        if response == 0:
-            logger.info('%s is up!' % self.name)
-            return True
-        else:
-            logger.info('%s is down!' % self.name)
-            return False
-    
-    def send_wol(self):
-        logger.info("seding wol packet to %s" % self.name)
-        os.system("wakeonlan -i %s %s" % (self.broadcast_ip, self.mac))
-    
-    def send_shutdown(self):
-        logger.info("sending shutdown to %s" % self.name)
-        shutdown_command = "net rpc shutdown -f -t 1 -I %s -U %s%%%s" % (self.ip, self.username, self.password)
-        os.system(shutdown_command)
-    
-    def shutdown_if_online(self):
-        logger.info("Shutting down %s" % self.name)
-        if not self.check_online():
-            logger.info("%s already down." % self.name)
-            return
-        self.send_shutdown()
 
 
 class ZmqEvents(object):
@@ -206,8 +174,8 @@ class NestMultiProcess(object):
 class HomeAutomation(object):
     def __init__(self):
         signal.signal(signal.SIGINT, self.signal_handler)
-        self.hettie_power = WindowsPcPower(config.get('windowspc', 'name'), config.get('windowspc', 'ip'), config.get('windowspc', 'mac'), 
-                                           config.get('network', 'broadcast_ip'), config.get('windowspc', 'username'), config.get('windowspc', 'password'))
+        self.pc_power = windows_power.WindowsPower(config.get('windowspc', 'name'), config.get('windowspc', 'ip'), config.get('windowspc', 'mac'), 
+                                                   config.get('network', 'broadcast_ip'), config.get('windowspc', 'username'), config.get('windowspc', 'password'))
         self.hue_presets  = HuePresets(config.get('hue', 'bridge_ip'), self.hue_button_event_handler)
         self.nest         = NestMultiProcess(config.get('nest', 'username'), config.get('nest', 'password'))
         self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'), self.harmony_state_change_handler)
@@ -218,9 +186,9 @@ class HomeAutomation(object):
     def harmony_state_change_handler(self, old_state, new_state):
         logger.info("Harmony state change: [%s] --> [%s]" % (old_state, new_state))
         if self.hettie_should_be_on(old_state) and not self.hettie_should_be_on(new_state):
-            self.hettie_power.shutdown_if_online()
+            self.pc_power.shutdown_if_online()
         elif not self.hettie_should_be_on(old_state) and self.hettie_should_be_on(new_state):
-            self.hettie_power.send_wol()
+            self.pc_power.send_wol()
         self.check_dac_state(new_state)
 
     def check_dac_state(self, new_state):
