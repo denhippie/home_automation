@@ -9,6 +9,7 @@ import timeit
 import logging
 import zmq
 import traceback
+import ConfigParser
 from phue import Bridge
 import datetime
 from pyHS100 import SmartPlug
@@ -220,12 +221,15 @@ class NestMultiProcess(object):
 class HomeAutomation(object):
     def __init__(self):
         signal.signal(signal.SIGINT, self.signal_handler)
-        self.hettie_power = WindowsPcPower("<PCNAME>", "<PC-IP>", "<PC-MAC>", "<BROADCAST_IP>", "<LOGIN>", "<PASSWORD>")
-        self.hue_presets  = HuePresets("<HUE-BRIDGE-IP>", self.hue_button_event_handler)
-        self.nest         = NestMultiProcess("<NEST-USERNAME>", "<NEST-PASSWORD>")
-        self.harmony      = harmony_reactor.HarmonyStateMonitor("<HARMONY-HUB-IP>", 5222, self.harmony_state_change_handler, logging)
-        self.dac_power    = SmartPlug("<WIFI-SOCKET-IP>")
-        self.zmq          = ZmqEvents(<ZMQ-PORT>, self.zmq_message_handler)
+        config = ConfigParser.RawConfigParser()
+        config.read('home_automation.cfg')
+        self.hettie_power = WindowsPcPower(config.get('windowspc', 'name'), config.get('windowspc', 'ip'), config.get('windowspc', 'mac'), 
+                                           config.get('network', 'broadcast_ip'), config.get('windowspc', 'username'), config.get('windowspc', 'password'))
+        self.hue_presets  = HuePresets(config.get('hue', 'bridge_ip'), self.hue_button_event_handler)
+        self.nest         = NestMultiProcess(config.get('nest', 'username'), config.get('nest', 'password'))
+        self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'), self.harmony_state_change_handler)
+        self.dac_power    = SmartPlug(config.get('dac', 'ip'))
+        self.zmq          = ZmqEvents(config.getint('zmq', 'port'), self.zmq_message_handler)
         self.harmony.connect()
         
     def harmony_state_change_handler(self, old_state, new_state):
