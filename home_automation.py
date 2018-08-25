@@ -17,11 +17,15 @@ from multiprocessing import Process
 
 
 logfile = '/var/log/hettiewol/hettiewol.log'
-logging.basicConfig(filename=logfile,level=logging.INFO, format='%(asctime)s %(message)s')
-#logging.basicConfig(filename=logfile,level=logging.DEBUG, format='%(asctime)s %(message)s')
+logging.basicConfig(filename=logfile,level=logging.INFO, format='%(asctime)s [%(name)s][%(levelname)s] %(message)s')
+#logger.basicConfig(filename=logfile,level=logger.DEBUG, format='%(asctime)s %(message)s')
+logger = logging.getLogger(__name__)
+
+
 sys.stdout = open(logfile, 'a')
 sys.stderr = open(logfile, 'a')
-logging.info("======================================================================================")
+
+logger.info("======================================================================================")
 
 
 def parse_hue_time(hue_time):
@@ -47,13 +51,13 @@ class HueButtonAction(object):
         return "None"
 
     def check_lights(self):
-        logging.debug("Checking Hue Button Action")
+        logger.debug("Checking Hue Button Action")
         last_updated = self.get_last_updated()
         if last_updated <= self.button_time:
             return
         self.button_time = last_updated
         new_button_state = self.get_button_state()
-        logging.info("%s button pressed! Invoking handler." % self.sensor.name)
+        logger.info("%s button pressed! Invoking handler." % self.sensor.name)
         self.button_handler(self.sensor.name, new_button_state)
 
     
@@ -66,13 +70,13 @@ class HueMotionFixer(object):
         self.lights      = lights
     
     def check_lights(self):
-        logging.debug("Checking Hue Light Timeout")
+        logger.debug("Checking Hue Light Timeout")
         sensor = self.bridge.get_sensor(self.sensor_name)
         #2016-12-25T13:35:37
         last_update = parse_hue_time(sensor['state']['lastupdated'])    
         time_since_last_update = datetime.datetime.utcnow() - last_update
         if time_since_last_update > datetime.timedelta(minutes=self.timeout) and self.bridge[self.lights].on:
-            logging.info("%s last activity %s ago, switching %s off." % (self.sensor_name, str(time_since_last_update), self.lights))
+            logger.info("%s last activity %s ago, switching %s off." % (self.sensor_name, str(time_since_last_update), self.lights))
             self.bridge[self.lights].on = False
             
             
@@ -90,7 +94,7 @@ class HueLinkedPlug(object):
         try:
             response = os.system("ping -c 1 -w 1 %s > /dev/null" % self.plug_ip)
         except:
-            logging.info("Failed to ping %s" % self.plug_ip)
+            logger.info("Failed to ping %s" % self.plug_ip)
         return response == 0
     
     def get_plug_state(self):
@@ -112,37 +116,37 @@ class HueLinkedPlug(object):
         return self.bridge[self.hue_light_name].on and self.bridge[self.hue_light_name].brightness >= 50
     
     def check_lights(self):
-        logging.debug("Checking Hue Linked Plug %s: %s" % (self.hue_light_name, self.plug_ip))
+        logger.debug("Checking Hue Linked Plug %s: %s" % (self.hue_light_name, self.plug_ip))
         if not self.check_online():
-            logging.debug("Hue Linked Plug %s is NOT online" % self.hue_light_name)
+            logger.debug("Hue Linked Plug %s is NOT online" % self.hue_light_name)
             if self.reachable:
-                logging.info("Plug at %s unreachable, not able to link with %s" % (self.plug_ip, self.hue_light_name))
+                logger.info("Plug at %s unreachable, not able to link with %s" % (self.plug_ip, self.hue_light_name))
                 self.reachable = False
             return
         elif not self.reachable:
-            logging.info("Plug at %s came back online, linking with %s" % (self.plug_ip, self.hue_light_name))
+            logger.info("Plug at %s came back online, linking with %s" % (self.plug_ip, self.hue_light_name))
             self.reachable = True
-        logging.debug("Hue Linked Plug %s is online" % self.hue_light_name)
+        logger.debug("Hue Linked Plug %s is online" % self.hue_light_name)
         plug_state = None
         hue_state  = None
         try:
             plug_state = self.get_plug_state()
             hue_state  = self.get_hue_state()
         except:
-            logging.info("Plug at %s did not respond, not able to link with %s" % (self.plug_ip, self.hue_light_name))
+            logger.info("Plug at %s did not respond, not able to link with %s" % (self.plug_ip, self.hue_light_name))
             return
         if hue_state != self.hue_state:
             alias = self.get_plug_alias()
-            logging.info("%s switched state, checking %s (%s)" % (self.hue_light_name, alias, self.plug_ip))
+            logger.info("%s switched state, checking %s (%s)" % (self.hue_light_name, alias, self.plug_ip))
             self.hue_state = hue_state
-            #logging.info("%s = %s | %s = %s" % (plug.alias, plug.state, self.hue_light_name, self.bridge[self.hue_light_name].on))
+            #logger.info("%s = %s | %s = %s" % (plug.alias, plug.state, self.hue_light_name, self.bridge[self.hue_light_name].on))
             if   plug_state == "ON" and not hue_state:
-                logging.info("Switching %s OFF to match %s" % (alias, self.hue_light_name))
+                logger.info("Switching %s OFF to match %s" % (alias, self.hue_light_name))
                 self.plug_switch(False)
             elif plug_state == "OFF" and hue_state:
-                logging.info("Switching %s ON to match %s" % (alias, self.hue_light_name))
+                logger.info("Switching %s ON to match %s" % (alias, self.hue_light_name))
                 self.plug_switch(True)
-        logging.debug("Finished checking Hue Linked Plug %s" % self.hue_light_name)
+        logger.debug("Finished checking Hue Linked Plug %s" % self.hue_light_name)
         
     
     
@@ -163,17 +167,17 @@ class HuePresets(object):
         if group["state"]["any_on"]:
             self.bridge.run_scene(group_name, scene_name)
         else:
-            logging.info("%s: not changing to scene %s, all lights are off." % (group_name, scene_name))
+            logger.info("%s: not changing to scene %s, all lights are off." % (group_name, scene_name))
         
     def movie_lights(self):
-        logging.info("setting lights to movie mode")
+        logger.info("setting lights to movie mode")
         for group_name in ["Tafel", "Hal", "Keuken", "Huiskamer"]:
             #self.change_scene_if_on(group_name, "Film")
             self.bridge.run_scene(group_name, "Film")
         self.check_lights()
     
     def relax_lights(self):
-        logging.info("setting lights to relax mode")
+        logger.info("setting lights to relax mode")
         for group_name in ["Tafel", "Hal", "Keuken", "Huiskamer"]:
             #self.change_scene_if_on(group_name, "Relax")
             self.bridge.run_scene(group_name, "Relax")
@@ -196,32 +200,32 @@ class WindowsPcPower(object):
     def check_online(self):
         response = os.system("ping -c 1 -w 1 %s > /dev/null" % self.ip)
         if response == 0:
-            logging.info('%s is up!' % self.name)
+            logger.info('%s is up!' % self.name)
             return True
         else:
-            logging.info('%s is down!' % self.name)
+            logger.info('%s is down!' % self.name)
             return False
     
     def send_wol(self):
-        logging.info("seding wol packet to %s" % self.name)
+        logger.info("seding wol packet to %s" % self.name)
         os.system("wakeonlan -i <BROADCAST-IP> %s" % self.mac)
     
     def wake_hettie(self):
-        logging.info("Waking %s" % self.name)
+        logger.info("Waking %s" % self.name)
         if self.check_online():
-            logging.info("%s already awake." % self.name)
+            logger.info("%s already awake." % self.name)
             return
         self.send_wol()
     
     def send_shutdown(self):
-        logging.info("sending shutdown to %s" % self.name)
+        logger.info("sending shutdown to %s" % self.name)
         shutdown_command = "net rpc shutdown -f -t 1 -I %s -U %s%%%s" % (self.ip, self.username, self.password)
         os.system(shutdown_command)
     
     def shutdown_hettie(self):
-        logging.info("Shutting down %s" % self.name)
+        logger.info("Shutting down %s" % self.name)
         if not self.check_online():
-            logging.info("%s already down." % self.name)
+            logger.info("%s already down." % self.name)
             return
         self.send_shutdown()
 
@@ -233,13 +237,13 @@ class ZmqEvents(object):
         self.zmq_socket = self.zmq_context.socket(zmq.SUB)
         self.zmq_socket.setsockopt(zmq.SUBSCRIBE, '')
         self.zmq_socket.connect("tcp://localhost:%d" % port)
-        logging.info("ZMQ connected.")
+        logger.info("ZMQ connected.")
         
     def check_zmq_event(self):
-        logging.debug("Checking ZMQ event")
+        logger.debug("Checking ZMQ event")
         try:
             message = self.zmq_socket.recv(flags=zmq.NOBLOCK)
-            logging.info("Received message [%s]" % message)
+            logger.info("Received message [%s]" % message)
             #self.check_state_change()
             self.message_handler(message)
             return True
@@ -253,19 +257,19 @@ class NestMultiProcess(object):
         pass
         
     def nest_away(self):
-        logging.info("Setting Nest to away")
+        logger.info("Setting Nest to away")
         os.system("nest -u <NEST-USERNAME> -p <NEST-PASSWORD> -c away --away")
-        logging.info("Setting Nest to away - done")
+        logger.info("Setting Nest to away - done")
 
     def nest_home(self):
-        logging.info("Setting Nest to home")
+        logger.info("Setting Nest to home")
         os.system("nest -u <NEST-USERNAME> -p <NEST-PASSWORD> -c away --home")
-        logging.info("Setting Nest to home - done")
+        logger.info("Setting Nest to home - done")
         
     def nest_temp(self, temp):
-        logging.info("Setting Nest target temperature to %f" % temp)
+        logger.info("Setting Nest target temperature to %f" % temp)
         os.system("nest -u <NEST-USERNAME> -p <NEST-PASSWORD> -c temp %f" % temp)
-        logging.info("Setting Nest target temperature to %f - done" % temp)
+        logger.info("Setting Nest target temperature to %f - done" % temp)
         
     def nest_home_and_temp(self, home, temp):
         self.nest_temp(temp)
@@ -300,7 +304,7 @@ class HomeAutomation(object):
         #    self.hue_presets.relax_lights()
         #if new_state == "Film":
         #    self.hue_presets.movie_lights()
-        logging.info("Harmony state change: [%s] --> [%s]" % (old_state, new_state))
+        logger.info("Harmony state change: [%s] --> [%s]" % (old_state, new_state))
         if self.hettie_should_be_on(old_state) and not self.hettie_should_be_on(new_state):
             self.hettie_power.shutdown_hettie()
         elif not self.hettie_should_be_on(old_state) and self.hettie_should_be_on(new_state):
@@ -309,12 +313,12 @@ class HomeAutomation(object):
 
     def check_dac_state(self, new_state):
         dac_cur = self.dac_power.state
-        logging.debug("Checking DAC state: current[%s] activity[%s]" % (dac_cur, new_state))
+        logger.debug("Checking DAC state: current[%s] activity[%s]" % (dac_cur, new_state))
         if new_state == "PowerOff" and dac_cur == "ON":
-            logging.info("Switching DAC OFF")
+            logger.info("Switching DAC OFF")
             self.dac_power.turn_off()
         elif new_state != "PowerOff" and dac_cur == "OFF":
-            logging.info("Switching DAC ON")
+            logger.info("Switching DAC ON")
             self.dac_power.turn_on()
     
     def zmq_message_handler(self, message):
@@ -327,23 +331,23 @@ class HomeAutomation(object):
         return state == "Film" or state == "Listen to Music"
 
     def hue_button_event_handler(self, sensor, button):
-        logging.info("Button event: %s %s" % (sensor, button))
+        logger.info("Button event: %s %s" % (sensor, button))
         if sensor == "Entree switch":
             if button == 34:
-                logging.info("Leaving the house")
+                logger.info("Leaving the house")
                 self.harmony.power_off()
                 self.nest.multi_home_and_temp(False, 15)
             elif button in [16, 17, 18]:
-                logging.info("Coming home!")
+                logger.info("Coming home!")
                 self.nest.multi_home_and_temp(True, 20)
         elif sensor == "Slaapkamer switch":
             if button == 34:
-                logging.info("Going to sleep")
+                logger.info("Going to sleep")
                 self.harmony.power_off()
                 self.nest.multi_temp(15)
         
     def signal_handler(self, signal, frame):
-        logging.info('You pressed Ctrl+C!')
+        logger.info('You pressed Ctrl+C!')
         self.harmony.disconnect()
         sys.exit(0)
 
@@ -355,7 +359,7 @@ class HomeAutomation(object):
         try:
             counter = 0
             while True:
-                logging.debug("Run %d" % counter)
+                logger.debug("Run %d" % counter)
                 while self.zmq.check_zmq_event():
                     pass
                 if counter % 5 == 0:
@@ -363,14 +367,14 @@ class HomeAutomation(object):
                 if counter % 60 == 0:
                     self.check_state()
                 if counter % 600 == 0:
-                    logging.info("Still alive! Iteration count %d" % counter)
+                    logger.info("Still alive! Iteration count %d" % counter)
                 time.sleep(1)
-                logging.debug("Run %d completed" % counter)
+                logger.debug("Run %d completed" % counter)
                 counter = counter + 1
         except:
-            logging.info("Caught an exception, shutting down.")
-            logging.info(traceback.format_exc())
-            logging.info("bla")
+            logger.info("Caught an exception, shutting down.")
+            logger.info(traceback.format_exc())
+            logger.info("bla")
             self.harmony.disconnect()
             sys.exit(0)    
     

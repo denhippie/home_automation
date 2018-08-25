@@ -1,21 +1,22 @@
 import pyharmony
+import logging
 
+logger = logging.getLogger(__name__)
 
 class HarmonyStateMonitor(object):
-    def __init__(self, ip, port, state_handler, logger):
+    def __init__(self, ip, port, state_handler):
         self.ip                   = ip
         self.port                 = port
         self.handler_func         = state_handler
-        self.logger               = logger
         self.harmony_client       = None
         self.harmony_config_cache = None
         self.last_state           = None
         
     def connect(self):
-        self.logger.info("connecting harmony: %s:%s" % (self.ip, self.port))
+        logger.info("connecting harmony: %s:%s" % (self.ip, self.port))
         self.harmony_client = pyharmony.get_client(self.ip, self.port, self.state_change_callback)
         self.harmony_config_cache = self.harmony_client.get_config()
-        self.logger.info("Harmony connected. Connecting to ZMQ")
+        logger.info("Harmony connected. Connecting to ZMQ")
         self.last_state = self.get_activity()
     
     def disconnect(self):
@@ -24,7 +25,7 @@ class HarmonyStateMonitor(object):
             
     def state_change_callback(self, activity_id):
         activity_name = self.get_activity_name(activity_id)
-        self.logger.info("State change callback [%s]" % activity_name)
+        logger.info("State change callback [%s]" % activity_name)
         self.process_new_state(activity_name)
     
     def get_activity_name(self, current_activity_id):
@@ -40,7 +41,7 @@ class HarmonyStateMonitor(object):
                 current_activity_id = self.harmony_client.get_current_activity()
                 return current_activity_id
             except:
-                self.logger.info("Caught error while trying to get Harmony state.")
+                logger.info("Caught error while trying to get Harmony state.")
         # One more try, uncaught errors...
         return self.harmony_client.get_current_activity()
     
@@ -52,12 +53,12 @@ class HarmonyStateMonitor(object):
         activity_name = self.get_activity_name(activity_id)
         if activity_name != None:
             return activity_name
-        self.logger.info("refreshing config")
+        logger.info("refreshing config")
         self.harmony_config_cache = self.harmony_client.get_config()
         return self.get_activity_name(activity_id)
     
     def power_off(self):
-        self.logger.info("Shutting down Harmony")
+        logger.info("Shutting down Harmony")
         self.harmony_client.power_off()
         
     def check_state_change(self):
@@ -65,7 +66,7 @@ class HarmonyStateMonitor(object):
         
     def process_new_state(self, new_state):
         if new_state != self.last_state:
-            self.logger.info("State change: [%s] --> [%s]" % (self.last_state, new_state))
+            logger.info("State change: [%s] --> [%s]" % (self.last_state, new_state))
             if self.handler_func != None:
                 self.handler_func(self.last_state, new_state)
             self.last_state = new_state
