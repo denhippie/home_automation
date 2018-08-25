@@ -190,12 +190,13 @@ class HuePresets(object):
     
 
 class WindowsPcPower(object):
-    def __init__(self, name, ip, mac, username, password):
-        self.name     = name
-        self.ip       = ip
-        self.mac      = mac
-        self.username = username
-        self.password = password
+    def __init__(self, name, ip, mac, broadcast_ip, username, password):
+        self.name         = name
+        self.ip           = ip
+        self.mac          = mac
+        self.broadcast_ip = broadcast_ip
+        self.username     = username
+        self.password     = password
         
     def check_online(self):
         response = os.system("ping -c 1 -w 1 %s > /dev/null" % self.ip)
@@ -208,7 +209,7 @@ class WindowsPcPower(object):
     
     def send_wol(self):
         logger.info("seding wol packet to %s" % self.name)
-        os.system("wakeonlan -i <BROADCAST-IP> %s" % self.mac)
+        os.system("wakeonlan -i %s %s" % (self.broadcast_ip, self.mac))
     
     def wake_hettie(self):
         logger.info("Waking %s" % self.name)
@@ -291,7 +292,7 @@ class NestMultiProcess(object):
 class HomeAutomation(object):
     def __init__(self):
         signal.signal(signal.SIGINT, self.signal_handler)
-        self.hettie_power = WindowsPcPower("<PCNAME>", "<PC-IP>", "<PC-MAC>", "<LOGIN>", "<PASSWORD>")
+        self.hettie_power = WindowsPcPower("<PCNAME>", "<PC-IP>", "<PC-MAC>", "<BROADCAST_IP>", "<LOGIN>", "<PASSWORD>")
         self.hue_presets  = HuePresets("<HUE-BRIDGE-IP>", self.hue_button_event_handler)
         self.nest         = NestMultiProcess()
         self.harmony      = harmony_reactor.HarmonyStateMonitor("<HARMONY-HUB-IP>", 5222, self.harmony_state_change_handler, logging)
