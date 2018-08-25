@@ -20,7 +20,8 @@ config = configparser.RawConfigParser()
 config.read('home_automation.cfg')
 
 logfile = config.get('log', 'file')
-logging.basicConfig(filename=logfile,level=logging.INFO, format='%(asctime)s [%(name)s][%(levelname)s] %(message)s')
+loglevel = logging.getLevelName(config.get('log', 'level'))
+logging.basicConfig(filename=logfile,level=loglevel, format='%(asctime)s [%(name)s][%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
 
