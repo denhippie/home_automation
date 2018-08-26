@@ -9,7 +9,6 @@ import time
 import signal
 import sys
 import logging
-import zmq
 import traceback
 import configparser
 
@@ -31,27 +30,6 @@ sys.stderr = open(logfile, 'a')
 logger.info("======================================================================================")
 
 
-class ZmqEvents(object):
-    def __init__(self, port, message_handler):
-        self.message_handler = message_handler
-        self.zmq_context = zmq.Context()
-        self.zmq_socket = self.zmq_context.socket(zmq.SUB)
-        self.zmq_socket.setsockopt(zmq.SUBSCRIBE, b'')
-        self.zmq_socket.connect("tcp://localhost:%d" % port)
-        logger.info("ZMQ connected.")
-        
-    def check_zmq_event(self):
-        logger.debug("Checking ZMQ event")
-        try:
-            message = self.zmq_socket.recv(flags=zmq.NOBLOCK).decode("utf-8")
-            logger.info("Received message [%s]" % message)
-            self.message_handler(message)
-            return True
-        except:
-            return False
-
-
-
 class HomeAutomation(object):
     def __init__(self):
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -61,10 +39,13 @@ class HomeAutomation(object):
         self.nest         = nest_process.NestMultiProcess(config.get('nest', 'username'), config.get('nest', 'password'))
         self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'))
         self.dac_power    = SmartPlug(config.get('dac', 'ip'))
-        self.zmq          = ZmqEvents(config.getint('zmq', 'port'), self.zmq_message_handler)
         self.harmony.connect()
         self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("PcPower",  ["Film", "Listen to Music"], self.pc_power.send_wol,  self.pc_power.shutdown_if_online))
         self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("DacPower", ["PowerOff"],                self.dac_power.turn_off, self.dac_power.turn_on))
+        self.harmony.add_home_control_reactor(harmony_reactor.SimpleHarmonyHomeControlReactor("Movie",  "3c1560e0-ccb1-4bb9-949f-ea73b4a9f332", self.hue_presets.movie_lights))
+        self.harmony.add_home_control_reactor(harmony_reactor.SimpleHarmonyHomeControlReactor("Relax",  "95b8b687-b2a2-4348-b33e-05cddab41bf4", self.hue_presets.relax_lights))
+        self.harmony.add_home_control_reactor(harmony_reactor.SimpleHarmonyHomeControlReactor("Bright", "4305e5d0-3b22-4a6a-3e1a-c1f892e1fad2", self.hue_presets.bright_lights))
+        self.harmony.add_home_control_reactor(harmony_reactor.SimpleHarmonyHomeControlReactor("Off",    "77d2b682-de20-4f37-a973-d05d8369dcc2", self.hue_presets.lights_off))
         self.harmony.add_state_change_reactor(harmony_aten_patch.HarmonyAtenPatch(self.harmony))
         self.harmony.check_state_change()
 
@@ -100,8 +81,6 @@ class HomeAutomation(object):
             counter = 0
             while True:
                 logger.debug("Run %d" % counter)
-                while self.zmq.check_zmq_event():
-                    pass
                 if counter % 5 == 0:
                     self.hue_presets.check_lights()
                 if counter % 600 == 0:

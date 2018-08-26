@@ -68,15 +68,25 @@ class HuePresets(object):
 
     def movie_lights(self):
         logger.info("setting lights to movie mode")
-        for group_name in ["Tafel", "Hal", "Keuken", "Huiskamer"]:
-            self.bridge.run_scene(group_name, "Film")
-        self.check_lights()
+        self.change_scene("Film")
     
     def relax_lights(self):
         logger.info("setting lights to relax mode")
+        self.change_scene("Relax")
+        
+    def bright_lights(self):
+        logger.info("setting lights to bright mode")
+        self.change_scene("Bright")
+        
+    def lights_off(self):
+        logger.info("switching lights off")
+        self.change_scene("Off")
+        
+    def change_scene(self, scene):
+        logger.info("setting lights to [%s] mode" % scene)
         for group_name in ["Tafel", "Hal", "Keuken", "Huiskamer"]:
-            self.bridge.run_scene(group_name, "Relax")
-        self.check_lights()
+            self.bridge.run_scene(group_name, scene)
+        self.check_lights()    
         
     def check_lights(self):
         for sensor in self.sensors:

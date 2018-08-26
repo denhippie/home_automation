@@ -1,6 +1,7 @@
 import pyharmony
 import logging
 import time
+import harmony_home_controls
 
 
 logger = logging.getLogger(__name__)
@@ -13,12 +14,14 @@ class HarmonyStateMonitor(object):
         self.harmony_client       = None
         self.harmony_config_cache = None
         self.last_state           = None
-        self.reactors             = []
+        self.state_reactors       = []
+        self.control_reactors     = []
         
     def connect(self):
         logger.info("connecting harmony: %s:%s" % (self.ip, self.port))
         self.harmony_client = pyharmony.get_client(self.ip, self.port, self.state_change_callback)
         self.harmony_config_cache = self.harmony_client.get_config()
+        harmony_home_controls.register_automation_callback(self.harmony_client, self.home_control_callback)
         logger.info("Harmony connected.")
     
     def disconnect(self):
@@ -59,8 +62,7 @@ class HarmonyStateMonitor(object):
         self.harmony_client.power_off()
         
     def add_state_change_reactor(self, reactor):
-        logger.info("Adding reactor")
-        self.reactors.append(reactor)
+        self.state_reactors.append(reactor)
         
     def state_change_callback(self, activity_id):
         activity_name = self.get_activity_name(activity_id)
@@ -73,7 +75,7 @@ class HarmonyStateMonitor(object):
     def process_new_state(self, new_state):
         if new_state != self.last_state:
             logger.info("State change: [%s] --> [%s]" % (self.last_state, new_state))
-            for reactor in self.reactors:
+            for reactor in self.state_reactors:
                 reactor.harmony_state_change_handler(self, self.last_state, new_state)
             self.last_state = new_state
             
@@ -83,6 +85,14 @@ class HarmonyStateMonitor(object):
         for i in range(repeat):
             time.sleep(delay)
             logger.info("[%s] re-send command [%s]" % (device_id, command))
+            
+    def add_home_control_reactor(self, reactor):
+        self.control_reactors.append(reactor)
+        
+    def home_control_callback(self, home_control_id, home_control_state_json):
+        logger.info("Home Control callback [%s]" % home_control_id)
+        for reactor in self.control_reactors:
+            reactor.harmony_home_control_handler(home_control_id, home_control_state_json)
 
 
 class SimpleHarmonyStateChangeReactor(object):
@@ -100,3 +110,16 @@ class SimpleHarmonyStateChangeReactor(object):
         else:
             logger.info("[%s] reacting on inverse state change to [%s]" % (self.name, new_state))
             self.inverse()
+
+
+class SimpleHarmonyHomeControlReactor(object):
+    def __init__(self, name, home_control_id, reaction):
+        self.name     = name
+        self.id       = home_control_id
+        self.reaction = reaction
+        
+    def harmony_home_control_handler(self, home_control_id, home_control_state_json):
+        if self.id == home_control_id:
+            logger.info("[%s] home control invoked" % self.name)
+            self.reaction()
+
