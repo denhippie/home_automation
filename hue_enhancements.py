@@ -40,29 +40,76 @@ class HueButtonAction(object):
 
     
     
-class HueMotionFixer(object):
-    def __init__(self, bridge, sensor_name, timeout_minutes, lights):
-        self.bridge      = bridge
-        self.sensor_name = sensor_name
-        self.timeout     = timeout_minutes
-        self.lights      = lights
+class HueMotionPatch(object):
+    """ The hue motion sensor turns on and off lights when it detects motion.
+        However: when another button turns on a light, the motion sensor does nothing.
+        Until you walk past it, and it detects a motion, then the light goes finally off.
+        Being annoyed with the light being on in the basement, this class patches this behavior.
+        It needs to be periodically called, and will switch off all lights that should have been off all along.
+    """
     
+    def __init__(self, bridge, timeout_minutes):
+        self.bridge  = bridge
+        self.timeout = timeout_minutes
+        self.sensors = self.map_sensors_to_groups()
+    
+    def find_motion_sensors(self, api):
+        sensors = []
+        for sensor_id in api['sensors']:
+            try:
+                if api['sensors'][sensor_id]['productname'] == 'Hue motion sensor':
+                    sensors.append(sensor_id)
+            except KeyError:
+                pass
+        return sensors
+    
+    def find_resource_for_sensor(self, api, sensor_id):
+        for resource_id in api['resourcelinks']:
+            try:
+                if api['resourcelinks'][resource_id]['name'] == "MotionSensor %s" % sensor_id:
+                    return resource_id
+            except KeyError:
+                pass
+        return None
+    
+    def find_groups_for_resource(self, api, resource_id):
+        groups = []
+        for link in api['resourcelinks'][resource_id]['links']:
+            if link[:len('/groups/')] == '/groups/':
+                groups.append(link[len('/groups/'):])
+        return groups
+
+    def map_sensors_to_groups(self):
+        mapping = dict()
+        api = self.bridge.get_api()
+        sensors = self.find_motion_sensors(api)
+        for sensor_id in sensors:
+            sensor_name = api['sensors'][sensor_id]['name']
+            resource_id = self.find_resource_for_sensor(api, sensor_id)
+            groups = self.find_groups_for_resource(api, resource_id)
+            for group_id in groups:
+                group_name = api['groups'][group_id]['name']
+                print("Hue MotionSensor %s [%s] controls group %s [%s]" % (sensor_id, sensor_name, group_id, group_name))
+                mapping[sensor_name] = group_name
+        return mapping
+
     def check_lights(self):
         logger.debug("Checking Hue Light Timeout")
-        sensor = self.bridge.get_sensor(self.sensor_name)
-        last_update = parse_hue_time(sensor['state']['lastupdated'])    
-        time_since_last_update = datetime.datetime.utcnow() - last_update
-        if time_since_last_update > datetime.timedelta(minutes=self.timeout) and self.bridge[self.lights].on:
-            logger.info("%s last activity %s ago, switching %s off." % (self.sensor_name, str(time_since_last_update), self.lights))
-            self.bridge[self.lights].on = False
+        for sensor_name in self.sensors:
+            group_name = self.sensors[sensor_name]
+            sensor = self.bridge.get_sensor(sensor_name)
+            last_update = parse_hue_time(sensor['state']['lastupdated'])    
+            time_since_last_update = datetime.datetime.utcnow() - last_update
+            if time_since_last_update > datetime.timedelta(minutes=self.timeout) and self.bridge[group_name].on:
+                logger.info("%s last activity %s ago, switching %s off." % (sensor_name, str(time_since_last_update), group_name))
+                self.bridge[group_name].on = False
 
 
 class HuePresets(object):
     def __init__(self, ip, button_handler):
         self.bridge  = Bridge(ip)
         self.sensors = []
-        self.sensors.append(HueMotionFixer(self.bridge, "Berging sensor", 2, "Berging"))
-        self.sensors.append(HueMotionFixer(self.bridge, "Entree sensor", 10, "Entree"))
+        self.sensors.append(HueMotionPatch(self.bridge, 5))
         self.sensors.append(HueButtonAction(self.bridge, "Entree switch", button_handler))
         self.sensors.append(HueButtonAction(self.bridge, "Slaapkamer switch", button_handler))
 
