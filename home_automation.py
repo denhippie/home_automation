@@ -141,38 +141,19 @@ class HomeAutomation(object):
                                                    config.get('network', 'broadcast_ip'), config.get('windowspc', 'username'), config.get('windowspc', 'password'))
         self.hue_presets  = HuePresets(config.get('hue', 'bridge_ip'), self.hue_button_event_handler)
         self.nest         = nest_process.NestMultiProcess(config.get('nest', 'username'), config.get('nest', 'password'))
-        self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'), self.harmony_state_change_handler)
+        self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'))
         self.dac_power    = SmartPlug(config.get('dac', 'ip'))
         self.zmq          = ZmqEvents(config.getint('zmq', 'port'), self.zmq_message_handler)
+        self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("PcPower",  ["Film", "Listen to Music"], self.pc_power.send_wol,  self.pc_power.shutdown_if_online))
+        self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("DacPower", ["PowerOff"],                self.dac_power.turn_off, self.dac_power.turn_on))
         self.harmony.connect()
-        
-    def harmony_state_change_handler(self, old_state, new_state):
-        logger.info("Harmony state change: [%s] --> [%s]" % (old_state, new_state))
-        if self.hettie_should_be_on(old_state) and not self.hettie_should_be_on(new_state):
-            self.pc_power.shutdown_if_online()
-        elif not self.hettie_should_be_on(old_state) and self.hettie_should_be_on(new_state):
-            self.pc_power.send_wol()
-        self.check_dac_state(new_state)
 
-    def check_dac_state(self, new_state):
-        dac_cur = self.dac_power.state
-        logger.debug("Checking DAC state: current[%s] activity[%s]" % (dac_cur, new_state))
-        if new_state == "PowerOff" and dac_cur == "ON":
-            logger.info("Switching DAC OFF")
-            self.dac_power.turn_off()
-        elif new_state != "PowerOff" and dac_cur == "OFF":
-            logger.info("Switching DAC ON")
-            self.dac_power.turn_on()
-    
     def zmq_message_handler(self, message):
         if message[:10] == "RelaxLight":
             self.hue_presets.relax_lights()
         if message[:9] == "FilmLight":
             self.hue_presets.movie_lights()
     
-    def hettie_should_be_on(self, state):
-        return state == "Film" or state == "Listen to Music"
-
     def hue_button_event_handler(self, sensor, button):
         logger.info("Button event: %s %s" % (sensor, button))
         if sensor == "Entree switch":
@@ -194,10 +175,6 @@ class HomeAutomation(object):
         self.harmony.disconnect()
         sys.exit(0)
 
-    def check_state(self):
-        self.harmony.check_state_change()
-        self.check_dac_state(self.harmony.get_activity())
-
     def main_loop(self):
         try:
             counter = 0
@@ -207,8 +184,6 @@ class HomeAutomation(object):
                     pass
                 if counter % 5 == 0:
                     self.hue_presets.check_lights()
-                if counter % 60 == 0:
-                    self.check_state()
                 if counter % 600 == 0:
                     logger.info("Still alive! Iteration count %d" % counter)
                 time.sleep(1)
