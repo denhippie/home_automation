@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 def parse_hue_time(hue_time):
     if hue_time == "none":
         return datetime.datetime.min
+    #2016-12-25T13:35:37
     return datetime.datetime.strptime(hue_time, '%Y-%m-%dT%H:%M:%S')    
 
 
@@ -21,7 +22,7 @@ class HueButtonAction(object):
         
     def get_last_updated(self):
         return parse_hue_time(self.sensor.state["lastupdated"])
-        
+
     def get_button_state(self):
         if "buttonevent" in self.sensor.state:
             return self.sensor.state["buttonevent"]
@@ -49,7 +50,6 @@ class HueMotionFixer(object):
     def check_lights(self):
         logger.debug("Checking Hue Light Timeout")
         sensor = self.bridge.get_sensor(self.sensor_name)
-        #2016-12-25T13:35:37
         last_update = parse_hue_time(sensor['state']['lastupdated'])    
         time_since_last_update = datetime.datetime.utcnow() - last_update
         if time_since_last_update > datetime.timedelta(minutes=self.timeout) and self.bridge[self.lights].on:
