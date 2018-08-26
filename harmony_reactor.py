@@ -1,7 +1,10 @@
 import pyharmony
 import logging
+import time
+
 
 logger = logging.getLogger(__name__)
+
 
 class HarmonyStateMonitor(object):
     def __init__(self, ip, port):
@@ -17,7 +20,6 @@ class HarmonyStateMonitor(object):
         self.harmony_client = pyharmony.get_client(self.ip, self.port, self.state_change_callback)
         self.harmony_config_cache = self.harmony_client.get_config()
         logger.info("Harmony connected.")
-        self.check_state_change()
     
     def disconnect(self):
         if self.harmony_client != None:
@@ -74,9 +76,15 @@ class HarmonyStateMonitor(object):
             for reactor in self.reactors:
                 reactor.harmony_state_change_handler(self, self.last_state, new_state)
             self.last_state = new_state
-
-
             
+    def send_command(self, device_id, command, repeat=0, delay=0.1):
+        logger.info("[%s] send command [%s]" % (device_id, command))
+        self.harmony_client.send_command(device_id, command)
+        for i in range(repeat):
+            time.sleep(delay)
+            logger.info("[%s] re-send command [%s]" % (device_id, command))
+
+
 class SimpleHarmonyStateChangeReactor(object):
     def __init__(self, name, states, reaction, inverse_reaction):
         self.name     = name

@@ -3,6 +3,7 @@ import windows_power
 import harmony_reactor
 import nest_process
 import hue_enhancements
+import harmony_aten_patch
 
 import time
 import signal
@@ -61,9 +62,11 @@ class HomeAutomation(object):
         self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'))
         self.dac_power    = SmartPlug(config.get('dac', 'ip'))
         self.zmq          = ZmqEvents(config.getint('zmq', 'port'), self.zmq_message_handler)
+        self.harmony.connect()
         self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("PcPower",  ["Film", "Listen to Music"], self.pc_power.send_wol,  self.pc_power.shutdown_if_online))
         self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("DacPower", ["PowerOff"],                self.dac_power.turn_off, self.dac_power.turn_on))
-        self.harmony.connect()
+        self.harmony.add_state_change_reactor(harmony_aten_patch.HarmonyAtenPatch(self.harmony))
+        self.harmony.check_state_change()
 
     def zmq_message_handler(self, message):
         if message[:10] == "RelaxLight":
