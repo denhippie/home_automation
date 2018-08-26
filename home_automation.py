@@ -2,7 +2,7 @@
 import windows_power
 import harmony_reactor
 import nest_process
-import hue_enhancements
+import hue_reactor
 import harmony_aten_patch
 
 import time
@@ -35,7 +35,7 @@ class HomeAutomation(object):
         signal.signal(signal.SIGINT, self.signal_handler)
         self.pc_power     = windows_power.WindowsPower(config.get('windowspc', 'name'), config.get('windowspc', 'ip'), config.get('windowspc', 'mac'), 
                                                        config.get('network', 'broadcast_ip'), config.get('windowspc', 'username'), config.get('windowspc', 'password'))
-        self.hue          = hue_enhancements.HueReactor(config.get('hue', 'bridge_ip'))
+        self.hue          = hue_reactor.HueReactor(config.get('hue', 'bridge_ip'))
         self.nest         = nest_process.NestMultiProcess(config.get('nest', 'username'), config.get('nest', 'password'))
         self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'))
         self.dac_power    = SmartPlug(config.get('dac', 'ip'))
