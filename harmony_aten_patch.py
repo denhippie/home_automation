@@ -4,6 +4,9 @@ logger = logging.getLogger(__name__)
 
 
 class HarmonyAtenPatch(object):
+    """ The standard Aten VS-482 controls in the harmony database are not very reliable.
+        By just blasting the controls a couple of times, I no longer have any issues.
+    """
     def __init__(self, harmony):
         self.id = self.find_id(harmony.harmony_config_cache)
         

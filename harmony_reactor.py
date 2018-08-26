@@ -8,6 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 class HarmonyStateMonitor(object):
+    """ Warpper class for the pyharmony client class.
+        Adds some caching, utility functions, and multi-plexes the callback functions.
+    """
     def __init__(self, ip, port):
         self.ip                   = ip
         self.port                 = port
@@ -96,6 +99,10 @@ class HarmonyStateMonitor(object):
 
 
 class SimpleHarmonyStateChangeReactor(object):
+    """ Basic reactor to a harmony activity state change. 
+        For a collection of states, callbacks will be invoked for when the activity is one of the states,
+        and for when the activity is no longer in that collection of states.
+    """
     def __init__(self, name, states, reaction, inverse_reaction):
         self.name     = name
         self.states   = states
@@ -113,6 +120,7 @@ class SimpleHarmonyStateChangeReactor(object):
 
 
 class SimpleHarmonyHomeControlReactor(object):
+    """ Very simple reactor to harmony home control automation (the light and socket buttons on the remote). """
     def __init__(self, name, home_control_id, reaction):
         self.name     = name
         self.id       = home_control_id

@@ -7,6 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 class NestMultiProcess(object):
+    """ For whatever reason it takes a ridiculous long time for the Nest operations to complete. 
+        This utility class implemets some basic functionality in a fire-and-forget way.
+    """
     def __init__(self, username, password):
         self.username = username
         self.password = password

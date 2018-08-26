@@ -5,6 +5,9 @@ logger = logging.getLogger(__name__)
 
 
 class WindowsPower(object):
+    """ Utility class for turning on and off a windows PC.
+        Requires 'wakeonlan' to be installed, as well as net rpc to be working.
+    """
     def __init__(self, name, ip, mac, broadcast_ip, username, password):
         self.name         = name
         self.ip           = ip

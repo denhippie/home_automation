@@ -31,6 +31,10 @@ logger.info("===================================================================
 
 
 class HomeAutomation(object):
+    """ This class wires all the stuff in my home together.
+        As-is, this will only be useful for you when you have exactly the same components as I do, and named them identically...
+        Otherwise, I hope that the other modules I built are useful to you, and this class illustrates how you can tie them together.
+    """
     def __init__(self):
         signal.signal(signal.SIGINT, self.signal_handler)
         self.pc_power     = windows_power.WindowsPower(config.get('windowspc', 'name'), config.get('windowspc', 'ip'), config.get('windowspc', 'mac'), 

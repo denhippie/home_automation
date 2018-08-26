@@ -13,6 +13,7 @@ def parse_hue_time(hue_time):
 
 
 class HueButtonAction(object):
+    """ Check if a Hue button was pressed, so that you can add more non-Hue functionality to it. """
     def __init__(self, sensor, button_handler):
         self.sensor         = sensor
         self.button_handler = button_handler
