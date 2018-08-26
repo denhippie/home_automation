@@ -48,12 +48,6 @@ class HomeAutomation(object):
         self.harmony.add_home_control_reactor(harmony_reactor.SimpleHarmonyHomeControlReactor("Off",    "77d2b682-de20-4f37-a973-d05d8369dcc2", self.hue_presets.lights_off))
         self.harmony.add_state_change_reactor(harmony_aten_patch.HarmonyAtenPatch(self.harmony))
         self.harmony.check_state_change()
-
-    def zmq_message_handler(self, message):
-        if message[:10] == "RelaxLight":
-            self.hue_presets.relax_lights()
-        if message[:9] == "FilmLight":
-            self.hue_presets.movie_lights()
     
     def hue_button_event_handler(self, sensor, button):
         logger.info("Button event: %s %s" % (sensor, button))
