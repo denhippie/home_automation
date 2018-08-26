@@ -13,10 +13,8 @@ def parse_hue_time(hue_time):
 
 
 class HueButtonAction(object):
-    def __init__(self, hue_bridge, sensor_name, button_handler):
-        sensors = hue_bridge.get_sensor_objects(mode='name')
-        self.bridge         = hue_bridge
-        self.sensor         = sensors[sensor_name]
+    def __init__(self, sensor, button_handler):
+        self.sensor         = sensor
         self.button_handler = button_handler
         self.button_time    = datetime.datetime.utcnow()
         
@@ -28,7 +26,7 @@ class HueButtonAction(object):
             return self.sensor.state["buttonevent"]
         return "None"
 
-    def check_lights(self):
+    def check_sensors(self):
         logger.debug("Checking Hue Button Action")
         last_updated = self.get_last_updated()
         if last_updated <= self.button_time:
@@ -89,11 +87,11 @@ class HueMotionPatch(object):
             groups = self.find_groups_for_resource(api, resource_id)
             for group_id in groups:
                 group_name = api['groups'][group_id]['name']
-                print("Hue MotionSensor %s [%s] controls group %s [%s]" % (sensor_id, sensor_name, group_id, group_name))
+                logger.info("Hue MotionSensor %s [%s] controls group %s [%s]" % (sensor_id, sensor_name, group_id, group_name))
                 mapping[sensor_name] = group_name
         return mapping
 
-    def check_lights(self):
+    def check_sensors(self):
         logger.debug("Checking Hue Light Timeout")
         for sensor_name in self.sensors:
             group_name = self.sensors[sensor_name]
@@ -105,36 +103,22 @@ class HueMotionPatch(object):
                 self.bridge[group_name].on = False
 
 
-class HuePresets(object):
-    def __init__(self, ip, button_handler):
-        self.bridge  = Bridge(ip)
+class HueReactor(object):
+    def __init__(self, bridge_ip):
+        self.bridge  = Bridge(bridge_ip)
         self.sensors = []
         self.sensors.append(HueMotionPatch(self.bridge, 5))
-        self.sensors.append(HueButtonAction(self.bridge, "Entree switch", button_handler))
-        self.sensors.append(HueButtonAction(self.bridge, "Slaapkamer switch", button_handler))
 
-    def movie_lights(self):
-        logger.info("setting lights to movie mode")
-        self.change_scene("Film")
-    
-    def relax_lights(self):
-        logger.info("setting lights to relax mode")
-        self.change_scene("Relax")
+    def add_button_action(self, button_name, button_handler):
+        sensors = self.bridge.get_sensor_objects(mode='name')
+        self.sensors.append(HueButtonAction(sensors[button_name], button_handler))
         
-    def bright_lights(self):
-        logger.info("setting lights to bright mode")
-        self.change_scene("Bright")
-        
-    def lights_off(self):
-        logger.info("switching lights off")
-        self.change_scene("Off")
-        
-    def change_scene(self, scene):
+    def change_scene(self, scene, groups):
         logger.info("setting lights to [%s] mode" % scene)
-        for group_name in ["Tafel", "Hal", "Keuken", "Huiskamer"]:
+        for group_name in groups:
             self.bridge.run_scene(group_name, scene)
-        self.check_lights()    
+        self.check_sensors()    
         
-    def check_lights(self):
+    def check_sensors(self):
         for sensor in self.sensors:
-            sensor.check_lights()
+            sensor.check_sensors()
