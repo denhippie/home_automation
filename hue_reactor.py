@@ -4,6 +4,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+#logger.setLevel(logging.DEBUG)
+
 
 def parse_hue_time(hue_time):
     if hue_time == "none":
@@ -99,6 +101,7 @@ class HueMotionPatch(object):
             sensor = self.bridge.get_sensor(sensor_name)
             last_update = parse_hue_time(sensor['state']['lastupdated'])    
             time_since_last_update = datetime.datetime.utcnow() - last_update
+            logger.debug("%s last activity %s ago" % (sensor_name, str(time_since_last_update)))
             if time_since_last_update > datetime.timedelta(minutes=self.timeout) and self.bridge[group_name].on:
                 logger.info("%s last activity %s ago, switching %s off." % (sensor_name, str(time_since_last_update), group_name))
                 self.bridge[group_name].on = False
@@ -111,6 +114,7 @@ class HueReactor(object):
         self.sensors.append(HueMotionPatch(self.bridge, 5))
 
     def add_button_action(self, button_name, button_handler):
+        logger.info("Add button action: %s" % button_name)
         sensors = self.bridge.get_sensor_objects(mode='name')
         self.sensors.append(HueButtonAction(sensors[button_name], button_handler))
         
