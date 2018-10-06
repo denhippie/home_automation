@@ -2,6 +2,7 @@ import pyharmony
 import logging
 import time
 import harmony_home_controls
+import json 
 
 
 logger = logging.getLogger(__name__)
@@ -92,10 +93,10 @@ class HarmonyStateMonitor(object):
     def add_home_control_reactor(self, reactor):
         self.control_reactors.append(reactor)
         
-    def home_control_callback(self, home_control_id, home_control_state_json):
-        logger.info("Home Control callback [%s]" % home_control_id)
+    def home_control_callback(self, event, payload):
+        logger.debug("Home Control callback [%s][%s]" % (event, payload))
         for reactor in self.control_reactors:
-            reactor.harmony_home_control_handler(home_control_id, home_control_state_json)
+            reactor.harmony_home_control_handler(event, payload)
 
 
 class SimpleHarmonyStateChangeReactor(object):
@@ -119,15 +120,27 @@ class SimpleHarmonyStateChangeReactor(object):
             self.inverse()
 
 
-class SimpleHarmonyHomeControlReactor(object):
+class HarmonyHomeControlButtonReactor(object):
     """ Very simple reactor to harmony home control automation (the light and socket buttons on the remote). """
+    # TODO: The control id is a UUID, that I can't match to anything in the Harmony conifguration.
+    #       I use Philips Hue lights, and I can also not find this UUID in the Hue Bridge config.
+    #       So for now: I hope that these UUIDs are stable, but hopefully I can figure out how to match them to human readable names...
     def __init__(self, name, home_control_id, reaction):
-        self.name     = name
-        self.id       = home_control_id
-        self.reaction = reaction
+        self.name           = name
+        self.id             = home_control_id
+        self.reaction       = reaction
+        self.button_pressed = False
         
-    def harmony_home_control_handler(self, home_control_id, home_control_state_json):
-        if self.id == home_control_id:
-            logger.info("[%s] home control invoked" % self.name)
-            self.reaction()
+    def harmony_home_control_handler(self, event, payload):
+        if event == "control.button":
+            logger.debug("Button pressed! Waiting for state message.")
+            self.button_pressed = True
+            return
+        if self.button_pressed and event == "automation.state":
+            parsed_xml = json.loads(payload)
+            key, value = parsed_xml.popitem()
+            if self.id == key:
+                logger.info("[%s] home control invoked" % self.name)
+                self.reaction()
+        self.button_pressed = False
 

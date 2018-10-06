@@ -46,14 +46,15 @@ class HomeAutomation(object):
         self.harmony.connect()
         self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("PcPower",  ["Film", "Listen to Music"], self.pc_power.send_wol,  self.pc_power.shutdown_if_online))
         self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("DacPower", ["PowerOff"],                self.dac_power.turn_off, self.dac_power.turn_on))
-        self.harmony.add_home_control_reactor(harmony_reactor.SimpleHarmonyHomeControlReactor("Movie",  "3c1560e0-ccb1-4bb9-949f-ea73b4a9f332", lambda:self.hue.change_scene("Film",   ["Tafel", "Hal", "Keuken", "Huiskamer"])))
-        self.harmony.add_home_control_reactor(harmony_reactor.SimpleHarmonyHomeControlReactor("Relax",  "95b8b687-b2a2-4348-b33e-05cddab41bf4", lambda:self.hue.change_scene("Relax",  ["Tafel", "Hal", "Keuken", "Huiskamer"])))
-        self.harmony.add_home_control_reactor(harmony_reactor.SimpleHarmonyHomeControlReactor("Bright", "4305e5d0-3b22-4a6a-3e1a-c1f892e1fad2", lambda:self.hue.change_scene("Bright", ["Tafel", "Hal", "Keuken", "Huiskamer"])))
-        self.harmony.add_home_control_reactor(harmony_reactor.SimpleHarmonyHomeControlReactor("Off",    "77d2b682-de20-4f37-a973-d05d8369dcc2", lambda:self.hue.change_scene("Off",    ["Tafel", "Hal", "Keuken", "Huiskamer"])))
+        self.harmony.add_home_control_reactor(harmony_reactor.HarmonyHomeControlButtonReactor("Movie",  "3c1560e0-ccb1-4bb9-949f-ea73b4a9f332", lambda:self.hue.change_scene("Film",   ["Tafel", "Hal", "Keuken", "Huiskamer"])))
+        self.harmony.add_home_control_reactor(harmony_reactor.HarmonyHomeControlButtonReactor("Relax",  "95b8b687-b2a2-4348-b33e-05cddab41bf4", lambda:self.hue.change_scene("Relax",  ["Tafel", "Hal", "Keuken", "Huiskamer"])))
+        self.harmony.add_home_control_reactor(harmony_reactor.HarmonyHomeControlButtonReactor("Bright", "4305e5d0-3b22-4a6a-3e1a-c1f892e1fad2", lambda:self.hue.change_scene("Bright", ["Tafel", "Hal", "Keuken", "Huiskamer"])))
+        self.harmony.add_home_control_reactor(harmony_reactor.HarmonyHomeControlButtonReactor("Off",    "77d2b682-de20-4f37-a973-d05d8369dcc2", lambda:self.hue.change_scene("Off",    ["Tafel", "Hal", "Keuken", "Huiskamer"])))
         self.harmony.add_state_change_reactor(harmony_aten_patch.HarmonyAtenPatch(self.harmony))
         self.harmony.check_state_change()
         self.hue.add_button_action("Entree switch",     hue_button_event_handler_entree)
         self.hue.add_button_action("Slaapkamer switch", hue_button_event_handler_bedroom)
+        logger.debug("Main class initialized.")
     
     def hue_button_event_handler_entree(self, sensor, button):
         logger.info("Button event: %s %s" % (sensor, button))
@@ -80,6 +81,7 @@ class HomeAutomation(object):
         sys.exit(0)
 
     def main_loop(self):
+        logger.debug("Starting main loop")
         try:
             counter = 0
             while True:
