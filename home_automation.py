@@ -52,8 +52,8 @@ class HomeAutomation(object):
         self.harmony.add_home_control_reactor(harmony_reactor.HarmonyHomeControlButtonReactor("Off",    "77d2b682-de20-4f37-a973-d05d8369dcc2", lambda:self.hue.change_scene("Off",    ["Tafel", "Hal", "Keuken", "Huiskamer"])))
         self.harmony.add_state_change_reactor(harmony_aten_patch.HarmonyAtenPatch(self.harmony))
         self.harmony.check_state_change()
-        self.hue.add_button_action("Entree switch",     hue_button_event_handler_entree)
-        self.hue.add_button_action("Slaapkamer switch", hue_button_event_handler_bedroom)
+        self.hue.add_button_action("Entree switch",     self.hue_button_event_handler_entree)
+        self.hue.add_button_action("Slaapkamer switch", self.hue_button_event_handler_bedroom)
         logger.debug("Main class initialized.")
     
     def hue_button_event_handler_entree(self, sensor, button):
