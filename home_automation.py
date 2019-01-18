@@ -33,8 +33,10 @@ logger.info("===================================================================
 
 
 class ZmqEvents(object):
-    def __init__(self, port, message_handler):
-        self.message_handler = message_handler
+    def __init__(self, port, pc_power, dac_power):
+        self.pc_power     = pc_power
+        self.dac_power    = dac_power
+        self.activities   = { "Music":False, "Film":False, "TV":False }
         self.zmq_context = zmq.Context()
         self.zmq_socket = self.zmq_context.socket(zmq.SUB)
         self.zmq_socket.setsockopt(zmq.SUBSCRIBE, b'')
@@ -51,6 +53,44 @@ class ZmqEvents(object):
         except:
             return False
             
+    def message_handler(self, message):
+        if message[-3:] != "OFF" and message[-2:] != "ON":
+            logger.info("Unexpected event on/off [%s]" % message)
+            return
+        event_on = message[-2:] == "ON"
+        event_name = message[:-3].strip()
+        if event_name in self.activities:
+            self.handle_activity(event_name, event_on)
+        elif event_name in ["FilmLight", "RelaxLight", "OffLight"]:
+            self.handle_light(event_name)
+        else:
+            logger.info("Unexpected event name [%s]" % message)
+            
+    def handle_light(self):
+        pass
+        
+    def handle_activity(self, activity, is_on):
+        self.activities[activity] = is_on
+        if is_on:
+            if activity in ["Music", "Film"]:
+                self.pc_power.send_wol()
+            if activity in ["Music", "Film", "TV"]:
+                self.dac_power.turn_on()
+        else:
+            self.check_all_off()
+            
+    def check_all_off(self):
+        for activity,is_on in self.activities:
+            if is_on:
+                return
+        logger.info("All activities off, powering down.")
+        self.power_down()
+            
+    def power_down(self):
+        self.pc_power.shutdown_if_online()
+        self.dac_power.turn_off()
+        
+        
             
 class HomeAutomation(object):
     """ This class wires all the stuff in my home together.
@@ -65,7 +105,7 @@ class HomeAutomation(object):
         self.nest         = nest_process.NestMultiProcess(config.get('nest', 'username'), config.get('nest', 'password'))
         #self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'))
         self.dac_power    = SmartPlug(config.get('dac', 'ip'))
-        self.zmq          = ZmqEvents(config.getint('zmq', 'port'), self.zmq_message_handler)
+        self.zmq          = ZmqEvents(config.getint('zmq', 'port'), self.pc_power, self.dac_power)
         #self.harmony.connect()
         #self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("PcPower",  ["Film", "Listen to Music"], self.pc_power.send_wol,  self.pc_power.shutdown_if_online))
         #self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("DacPower", ["PowerOff"],                self.dac_power.turn_off, self.dac_power.turn_on))
@@ -97,15 +137,6 @@ class HomeAutomation(object):
             logger.info("Going to sleep")
             #self.harmony.power_off()
             self.nest.multi_temp(15)
-    
-    def zmq_message_handler(self, message):
-        if message in ["Music ON", "Film ON"]:
-            self.pc_power.send_wol()
-        if message in ["Music ON", "Film ON", "TV ON"]:
-            self.dac_power.turn_on()
-        if message[-3:] == "OFF":
-            self.pc_power.shutdown_if_online()
-            self.dac_power.turn_off()
         
     def signal_handler(self, signal, frame):
         logger.info('You pressed Ctrl+C!')
