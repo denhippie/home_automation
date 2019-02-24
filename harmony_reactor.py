@@ -139,6 +139,7 @@ class HarmonyHomeControlButtonReactor(object):
         if self.button_pressed and event == "automation.state":
             parsed_xml = json.loads(payload)
             key, value = parsed_xml.popitem()
+            logger.debug("Atomation state event %s" % key)
             if self.id == key:
                 logger.info("[%s] home control invoked" % self.name)
                 self.reaction()
