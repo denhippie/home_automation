@@ -112,7 +112,7 @@ class HueReactor(object):
         self.bridge  = Bridge(bridge_ip)
         self.sensors = []
         self.sensors.append(HueMotionPatch(self.bridge, 5))
-
+        
     def add_button_action(self, button_name, button_handler):
         logger.info("Add button action: %s" % button_name)
         sensors = self.bridge.get_sensor_objects(mode='name')
@@ -121,8 +121,13 @@ class HueReactor(object):
     def change_scene(self, scene, groups):
         logger.info("setting lights to [%s] mode" % scene)
         for group_name in groups:
-            self.bridge.run_scene(group_name, scene)
-        self.check_sensors()    
+            logger.debug("[%s] setting lights to [%s] mode" % (group_name, scene))
+            try:
+                self.bridge.run_scene(group_name, scene)
+            except Exception as e:
+                logger.warn("%s" % e)
+                logging.exception("phue run scene exception")
+        self.check_sensors()
         
     def check_sensors(self):
         for sensor in self.sensors:
