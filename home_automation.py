@@ -4,6 +4,7 @@ import harmony_reactor
 import nest_process
 import hue_reactor
 import harmony_aten_patch
+import rest_server
 
 import time
 import signal
@@ -54,6 +55,9 @@ class HomeAutomation(object):
         self.harmony.check_state_change()
         self.hue.add_button_action("Entree switch",     self.hue_button_event_handler_entree)
         self.hue.add_button_action("Slaapkamer switch", self.hue_button_event_handler_bedroom)
+        self.rest = rest_server.RESTServer(config.getint('rest_server', 'port'))
+        self.rest.set_topic_handler("hue_scene", lambda scene : self.hue.change_scene(scene, ["Tafel", "Hal", "Keuken", "Huiskamer"]))
+        
         logger.debug("Main class initialized.")
     
     def hue_button_event_handler_entree(self, sensor, button):
@@ -86,6 +90,7 @@ class HomeAutomation(object):
             counter = 0
             while True:
                 logger.debug("Run %d" % counter)
+                self.rest.handle_till_done()
                 if counter % 5 == 0:
                     self.hue.check_sensors()
                 if counter % 600 == 0:
