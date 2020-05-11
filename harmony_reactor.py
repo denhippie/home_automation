@@ -61,9 +61,30 @@ class HarmonyStateMonitor(object):
         else:
             return None
             
+    def find_activity_id(self, activity_name):
+        for x in self.harmony_config_cache['activity']:
+            if x['label'].strip() == activity_name:
+                return x['id']
+        return None
+        
+    def start_activity(self, activity_name):
+        logger.info("Start activity [%s]" % activity_name)
+        activity_id = self.find_activity_id(activity_name)
+        if activity_id != None:
+            logger.info("Starting activity [%s] (%s)" % (activity_name, activity_id))
+            self.harmony_client.start_activity(activity_id)
+        else:
+            logger.warn("Unknown activity [%s]" % activity_name)
+            
     def power_off(self):
         logger.info("Shutting down Harmony")
         self.harmony_client.power_off()
+        
+    def find_device_id(self, device_label):
+        for device in self.harmony_config_cache['device']:
+            if device['label'] == device_label:
+                return device['id']
+        return None
         
     def add_state_change_reactor(self, reactor):
         self.state_reactors.append(reactor)
