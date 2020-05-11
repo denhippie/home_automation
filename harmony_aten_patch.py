@@ -8,15 +8,9 @@ class HarmonyAtenPatch(object):
         By just blasting the controls a couple of times, I no longer have any issues.
     """
     def __init__(self, harmony):
-        self.id = self.find_id(harmony.harmony_config_cache)
-        
-    def find_id(self, config):
-        for device in config['device']:
-            if device['manufacturer'] == 'Aten' and device['model'] == 'VS-482':
-                logging.info("mapping to device id [%s]" % device['id'])
-                return device['id']
-        logging.warn("No Aten VS-482 found!")
-        return None
+        self.id = harmony.find_device_id('Aten AV Switch')
+        if self.id == None:
+            logging.warn("No Aten VS-482 found!")
     
     def harmony_state_change_handler(self, harmony, old_state, new_state):
         logger.info("State change: [%s] --> [%s]" % (old_state, new_state))
