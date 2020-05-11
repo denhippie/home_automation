@@ -71,10 +71,12 @@ class HueMotionPatch(object):
                     return resource_id
             except KeyError:
                 pass
+        logger.warning("Could not find resource for sensor [%s]" % sensor_id)
         return None
     
     def find_groups_for_resource(self, api, resource_id):
         groups = []
+        logger.debug("finding groups for resource [%s]" % resource_id)
         for link in api['resourcelinks'][resource_id]['links']:
             if link[:len('/groups/')] == '/groups/':
                 groups.append(link[len('/groups/'):])
@@ -86,7 +88,11 @@ class HueMotionPatch(object):
         sensors = self.find_motion_sensors(api)
         for sensor_id in sensors:
             sensor_name = api['sensors'][sensor_id]['name']
+            logger.debug("Finding groups for [%s]" % sensor_name)
             resource_id = self.find_resource_for_sensor(api, sensor_id)
+            if resource_id is None:
+                logger.warning("Not binding sensor [%s]" % sensor_name)
+                continue
             groups = self.find_groups_for_resource(api, resource_id)
             for group_id in groups:
                 group_name = api['groups'][group_id]['name']
