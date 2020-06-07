@@ -3,7 +3,6 @@ import windows_power
 import harmony_reactor
 import nest_process
 import hue_reactor
-import harmony_aten_patch
 import rest_server
 
 import time
@@ -12,8 +11,6 @@ import sys
 import logging
 import traceback
 import configparser
-
-from pyHS100 import SmartPlug
 
 
 config = configparser.RawConfigParser()
@@ -43,21 +40,19 @@ class HomeAutomation(object):
         self.hue          = hue_reactor.HueReactor(config.get('hue', 'bridge_ip'))
         self.nest         = nest_process.NestMultiProcess(config.get('nest', 'username'), config.get('nest', 'password'))
         self.harmony      = harmony_reactor.HarmonyStateMonitor(config.get('harmony', 'ip'), config.getint('harmony', 'port'))
-        self.dac_power    = SmartPlug(config.get('dac', 'ip'))
         self.harmony.connect()
-        self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("PcPower",  ["Film", "Listen to Music"], self.pc_power.send_wol,  self.pc_power.shutdown_if_online))
-        self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("DacPower", ["PowerOff"],                self.dac_power.turn_off, self.dac_power.turn_on))
+        self.harmony.add_state_change_reactor(harmony_reactor.SimpleHarmonyStateChangeReactor("PcPower",  ["Film"], self.pc_power.send_wol,  self.pc_power.shutdown_if_online))
         self.harmony.add_home_control_reactor(harmony_reactor.HarmonyHomeControlButtonReactor("Movie",  "77d2b682-de20-4f37-a973-d05d8369dcc2", lambda:self.hue.change_scene("Film",   ["Tafel", "Hal", "Keuken", "Huiskamer"])))
         self.harmony.add_home_control_reactor(harmony_reactor.HarmonyHomeControlButtonReactor("Relax",  "37d25dad-9d46-458f-3e4c-983065dde0b9", lambda:self.hue.change_scene("Relax",  ["Tafel", "Hal", "Keuken", "Huiskamer"])))
         self.harmony.add_home_control_reactor(harmony_reactor.HarmonyHomeControlButtonReactor("Bright", "8d4c36b8-2605-4706-aeba-68cdb42b9767", lambda:self.hue.change_scene("Bright", ["Tafel", "Hal", "Keuken", "Huiskamer"])))
         self.harmony.add_home_control_reactor(harmony_reactor.HarmonyHomeControlButtonReactor("Off",    "326573f4-cc82-4101-3e5f-8d38385055be", lambda:self.hue.change_scene("Off",    ["Tafel", "Hal", "Keuken", "Huiskamer"])))
-        self.harmony.add_state_change_reactor(harmony_aten_patch.HarmonyAtenPatch(self.harmony))
         self.harmony.check_state_change()
         self.hue.add_button_action("Entree switch",     self.hue_button_event_handler_entree)
         self.hue.add_button_action("Slaapkamer switch", self.hue_button_event_handler_bedroom)
         self.rest = rest_server.RESTServer(config.getint('rest_server', 'port'))
         self.rest.set_topic_handler("hue_scene", lambda scene : self.hue.change_scene(scene, ["Tafel", "Hal", "Keuken", "Huiskamer"]))
-        
+        self.rest.set_topic_handler("harmony_activity", lambda activity : self.harmony.start_activity(activity))
+        self.rest.set_topic_handler("harmony_amp", lambda command : self.harmony.send_command(self.harmony.find_device_id('SimAudio Moon 390'), command))
         logger.debug("Main class initialized.")
     
     def hue_button_event_handler_entree(self, sensor, button):
